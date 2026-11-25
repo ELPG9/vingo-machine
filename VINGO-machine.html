@@ -1,0 +1,754 @@
+
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Concert+One&display=swap" rel="stylesheet">
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VINGO - Le grand tirage</title>
+
+    <style>
+        /* COULEURS ET STYLE GENERAL */
+
+        :root {
+            --cream: #202F40;
+            --green: #A9C957;
+            --blue: #83CDE0;
+            --pink: #F47D91;
+            --yellow: #F4D65E;
+            --orange: #F5A65B;
+            --dark: #40372F;
+            --light: #d8c499;
+        }
+
+        /* BASE DE LA PAGE */
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            padding: 30px;
+            background: var(--cream);
+            color: var(--light);
+            font-family: 'Concert One', sans-serif;
+        }
+
+        /* MISE EN PAGE PAYSAGE */
+        header {
+            text-align: center;
+            margin-bottom: 18px;
+        }
+        h1 {
+            font-family: 'Concert One', sans-serif;
+            font-size: 64px;
+            margin: 0;
+            letter-spacing: 5px;
+            color: #d8c499;
+        }
+        header p { font-size: 18px; margin-top: 4px; }
+        .main-container {
+            max-width: 1800px;
+            margin: auto;
+            display: grid;
+            grid-template-columns: minmax(350px, 435px) minmax(0, 1fr);
+            grid-template-rows: auto 1fr;
+            gap: 22px;
+        }
+        header { grid-column: 1 / -1; }
+        .machine-area {
+            background: #26282d;
+            border: 0;
+            border-radius: 24px;
+            padding: 22px;
+            min-height: 560px;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 18px;
+            color: #d8c499;
+        }
+        .machine-placeholder {
+            position: relative;
+            width: 100%;
+            flex: 0 0 320px;
+            min-height: 320px;
+            /* Halo turquoise renforcé derrière la cage */
+            background: radial-gradient(ellipse at 50% 50%, rgba(91, 169, 194, 0.28) 0%, rgba(91, 169, 194, 0.12) 48%, transparent 72%);
+            border: 0;
+            border-radius: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        /* Lumière diffuse plus visible, centrée derrière la cage */
+        .machine-placeholder::before {
+            content: "";
+            position: absolute;
+            width: 330px;
+            height: 330px;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(65, 190, 225, 0.48) 0%, rgba(65, 190, 225, 0.27) 38%, rgba(65, 190, 225, 0.12) 58%, transparent 75%);
+            filter: blur(16px);
+            pointer-events: none;
+            z-index: 0;
+        }
+        .machine-placeholder svg { width: 330px; height: 330px; flex: none; position: relative; z-index: 1; }
+        #manivelle-3d { position: absolute; width: 330px; height: 330px; top: 0; left: 50%; transform: translateX(-50%); pointer-events: none; z-index: 2; }
+        #manivelle-3d canvas { display: block; width: 330px !important; height: 330px !important; }
+        .machine-placeholder h2, .machine-placeholder p { display: none; }
+        .draw-placeholder { width: 100%; text-align: center; }
+        .draw-placeholder h2 { margin: 0 0 8px; font-size: 16px; letter-spacing: 2px; font-weight: normal; }
+        .number-display {
+            width: 280px; height: 280px; margin: 12px auto 18px;
+            background: white; border: 22px solid var(--green); border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-family: Arial, sans-serif; flex-direction: column; line-height: 1; color: #555;
+        }
+        #draw-display.reveal-number { animation: numberReveal 650ms cubic-bezier(.2, 1.4, .4, 1) both; }
+        @keyframes numberReveal { 0% { transform: scale(.65) rotate(-12deg); opacity: 0; } 65% { transform: scale(1.08) rotate(3deg); opacity: 1; } 100% { transform: scale(1) rotate(0); opacity: 1; } }
+        .number-letter { font-size: 60px; font-weight: bold; margin-bottom: 4px; }
+        .number-value { font-size: 100px; font-weight: bold; }
+        .draw-button { padding: 14px 20px; border: 0; border-radius: 10px; background: var(--green); color: white; font-family: Arial, sans-serif; font-size: 16px; font-weight: bold; cursor: pointer; }
+        .draw-button:disabled { opacity: .55; cursor: not-allowed; }
+        .grid-area { background: #26282d; border: 0; border-radius: 24px; padding: 22px; min-width: 0; }
+        .grid-area h2 { text-align: left; margin: 0 0 14px; color: white; }
+        .number-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 5px; margin-top: 0; }
+        .grid-cell { min-height: 28px; border-radius: 6px; display: flex; align-items: center; justify-content: center; background: #373a40; color: #eee; font-family: Arial, sans-serif; font-size: 18px; border: 2px solid transparent; user-select: none; }
+        .grid-header { min-height: 42px; font-size: 22px; font-weight: bold; color: white; }
+        .grid-header:nth-child(1) { background: #39a36b; }
+        .grid-header:nth-child(2) { background: #e6c84f; color: #303030; }
+        .grid-header:nth-child(3) { background: #438fc8; }
+        .grid-header:nth-child(4) { background: #9875c2; }
+        .grid-header:nth-child(5) { background: #e88b43; }
+        .grid-cell.called { font-weight: bold; color: #202F40; border-color: #202F40; }
+        .grid-cell.called[data-column="V"] { background: #39a36b; }
+        .grid-cell.called[data-column="I"] { background: #e6c84f; }
+        .grid-cell.called[data-column="N"] { background: #438fc8; }
+        .grid-cell.called[data-column="G"] { background: #9875c2; }
+        .grid-cell.called[data-column="O"] { background: #e88b43; }
+        .grid-tools { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-top: 12px; flex-wrap: wrap; font-family: Arial, sans-serif; color: #b7c1ce; }
+        .grid-tools button { padding: 9px 14px; border: 0; border-radius: 8px; background: #3a3d43; color: white; cursor: pointer; font-weight: bold; }
+        .grid-tools button:hover { background: #4a4d53; }
+        @media (max-width: 900px) {
+            body { padding: 16px; }
+            .main-container { grid-template-columns: 1fr; }
+            .machine-area { min-height: auto; }
+            header { grid-column: auto; }
+            .number-display { width: 220px; height: 220px; border-width: 16px; }
+            .grid-cell { min-height: 32px; font-size: 16px; }
+        }
+        @media (max-width: 500px) {
+            .grid-area { padding: 12px; }
+            .number-grid { gap: 3px; }
+            .grid-cell { min-height: 29px; font-size: 14px; border-radius: 5px; }
+            .grid-header { min-height: 38px; font-size: 18px; }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="main-container">
+
+        <header>
+            <h1>VINGO !</h1>
+        </header>
+
+        <section class="machine-area">
+            <div class="machine-placeholder">
+         <svg viewBox="0 0 300 300" width="300">
+
+<g id="cage-mobile">
+
+<!-- FOND INTÉRIEUR DE LA CAGE -->
+<circle
+    cx="150"
+    cy="150"
+    r="96"
+    fill="#F8E8C8"
+    stroke="none"
+/>
+
+<!-- BOULES DE BINGO -->
+
+<g id="balls-container"></g>
+
+<!-- BARREAUX VERTICAUX MOBILES -->
+
+<path d="M 100 65 Q 70 150 100 235" fill="none" stroke="#202F40" stroke-width="4" stroke-linecap="round"/>
+<path d="M 200 65 Q 230 150 200 235" fill="none" stroke="#202F40" stroke-width="4" stroke-linecap="round"/>
+<path d="M 125 55 Q 105 150 125 245" fill="none" stroke="#202F40" stroke-width="4" stroke-linecap="round"/>
+<path d="M 175 55 Q 195 150 175 245" fill="none" stroke="#202F40" stroke-width="4" stroke-linecap="round"/>
+
+<!-- BARREAU HORIZONTAL CENTRAL FIXE -->
+
+<line x1="55" y1="150" x2="250" y2="150" stroke="#202F40" stroke-width="4" stroke-linecap="round"/>
+
+<!-- BARREAU VERTICAL CENTRAL FIXE -->
+
+<line x1="150" y1="55" x2="150" y2="250" stroke="#202F40" stroke-width="4" stroke-linecap="round"/>
+
+<!-- BARREAUX HORIZONTAUX MOBILES -->
+
+<path d="M 65 100 Q 150 80 235 100" fill="none" stroke="#202F40" stroke-width="4" stroke-linecap="round"/>
+<path d="M 65 200 Q 150 220 235 200" fill="none" stroke="#202F40" stroke-width="4" stroke-linecap="round"/>
+
+<!-- CONTOUR DE LA CAGE -->
+<circle
+    cx="150"
+    cy="150"
+    r="100"
+    fill="none"
+    stroke="#5BA9C2"
+    stroke-width="8"
+/>
+
+<!-- SUPPORTS DE LA CAGE -->
+
+<line x1="115" y1="245" x2="115" y2="270" stroke="#5BA9C2" stroke-width="10" stroke-linecap="round"/>
+<line x1="185" y1="245" x2="185" y2="270" stroke="#5BA9C2" stroke-width="10" stroke-linecap="round"/> 
+
+<!-- BASE DE LA CAGE -->
+
+<line x1="90" y1="275" x2="210" y2="275" stroke="#5BA9C2" stroke-width="14" stroke-linecap="round"/>
+
+<!-- MANIVELLE -->
+
+</svg>  
+
+<div id="manivelle-3d"></div>     
+    <h2>Notre machine</h2>
+    <p>La cage arrive bientôt 🎱</p>
+</div>
+
+<div class="draw-placeholder">
+    <h2>Numéro tiré</h2>
+    <div class="number-display" id="draw-display" aria-live="polite">
+        <span class="number-letter" id="draw-letter">?</span>
+        <span class="number-value" id="draw-number">?</span>
+    </div>
+    <p id="draw-status">En attente du tirage...</p>
+    <button id="draw-number-button" class="draw-button" type="button">TIRER UN NUMÉRO</button>
+</div>
+        </section>
+
+        <section class="grid-area">
+            <h2>Grille des numéros</h2>
+            <div id="number-grid" class="number-grid" aria-label="Grille VINGO des numéros de 1 à 75"></div>
+            <div class="grid-tools">
+                <span id="grid-counter">0 / 75 numéros cochés</span>
+                <button id="grid-reset" type="button">Réinitialiser la grille</button>
+            </div>
+        </section>
+
+    </div>
+<script>
+    // ANIMATION DES BOULES DE BINGO
+const manivelle = document.getElementById("manivelle");
+let angleManivelle = 0;
+const pivotX = 250;
+const pivotY = 150;
+let sensManivelle = 1;
+
+// MOUVEMENT AVANT / ARRIÈRE DE LA MANIVELLE
+function tournerManivelle() {
+    angleManivelle += 0.1 * sensManivelle;
+
+    if (angleManivelle >= 4) {
+        sensManivelle = -1;
+    }
+
+    if (angleManivelle <= -5) {
+        sensManivelle = 1;
+    }
+
+    manivelle.setAttribute(
+        "transform",
+        `rotate(${angleManivelle} 250 150)`
+    );
+}
+
+// CRÉATION DES 75 BOULES
+
+const balls = [];
+const ballsContainer = document.getElementById("balls-container");
+
+const couleurs = [
+    "#F4A6A6",
+    "#F6D77A",
+    "#9ED5A5",
+    "#83CDE0",
+    "#F4B47C"
+];
+
+for (let i = 1; i <= 75; i++) {
+
+    const ball = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+
+    ball.setAttribute("id", `ball-${i}`);
+    ball.setAttribute("r", "20");
+    ball.setAttribute("fill", couleurs[(i - 1) % couleurs.length]);
+    ball.setAttribute("stroke", "#202F40");
+    ball.setAttribute("stroke-width", "2");
+
+    ballsContainer.appendChild(ball);
+    balls.push(ball);
+}
+
+// PARAMÈTRES DU MOUVEMENT
+
+const movements = [];
+
+balls.forEach((ball, i) => {
+    const startX = 110 + Math.random() * 80;
+    const startY = 205 + Math.random() * 10;
+
+    movements.push({
+        startX: startX,
+        startY: startY,
+        x: 0,
+        y: 0,
+        speedX: (Math.random() - 0.5) * 3,
+        speedY: (Math.random() - 0.5) * 6,
+        rebond: Math.random() < 0.25,
+        aRebondi: false
+    });
+
+    ball.setAttribute("cx", startX);
+    ball.setAttribute("cy", startY);
+});
+
+console.log("Nombre de boules récupérées :", balls.length);
+
+// LIMITES DE DÉPLACEMENT AUTOUR DE LA POSITION INITIALE
+const minX = -30;
+const maxX = 30;
+const minY = -75;
+const maxY = 5;
+
+// POSITION DE REPOS : LES BOULES SUIVENT LE FOND ARRONDI
+window.remettreBoulesAuRepos = function remettreBoulesAuRepos() {
+    const centreX = 150;
+    const centreY = 150;
+    const rayonDisponible = 76; // cercle intérieur moins le rayon des boules
+
+    movements.forEach((movement, i) => {
+        const x = movement.startX;
+        const distanceX = x - centreX;
+        const y = centreY + Math.sqrt(
+            Math.max(0, rayonDisponible * rayonDisponible - distanceX * distanceX)
+        );
+
+        movement.x = 0;
+        movement.y = y - movement.startY;
+        movement.speedX = 0;
+        movement.speedY = 0;
+
+        balls[i].setAttribute("cx", x);
+        balls[i].setAttribute("cy", y);
+    });
+};
+
+// Placement initial au chargement
+window.remettreBoulesAuRepos();
+
+// ANIMATION DES BOULES
+window.boulesEnMouvement = false;
+window.chuteBoules = false;
+window.chuteStartTime = 0;
+window.numeroDejaRevelePendantChute = false;
+
+function animateBalls() {
+
+    // BRASSAGE
+    if (window.boulesEnMouvement) {
+
+        balls.forEach((ball, i) => {
+            const movement = movements[i];
+
+            movement.x += movement.speedX;
+            movement.y += movement.speedY;
+
+            // GRAVITÉ
+            movement.speedY += 0.02;
+
+            // REBOND HORIZONTAL
+            if (movement.x < minX || movement.x > maxX) {
+                movement.speedX *= -1;
+            }
+
+            // REBOND VERTICAL DANS LA CAGE
+const positionX = movement.startX + movement.x;
+
+const centreCageX = 150;
+const centreCageY = 150;
+
+// Rayon réel moins l'épaisseur du contour et la taille des boules
+const rayonBoules = 20;
+const rayonInterieur = 100 - 4 - rayonBoules;
+
+const distanceX = positionX - centreCageX;
+
+// Limite basse adaptée à la forme du cercle
+const limiteBasAbsolue = centreCageY + Math.sqrt(
+    Math.max(0, rayonInterieur * rayonInterieur - distanceX * distanceX)
+);
+
+// Conversion en mouvement relatif
+const limiteBas = limiteBasAbsolue - movement.startY;
+
+if (movement.y > limiteBas) {
+    movement.y = limiteBas;
+    movement.speedY *= -0.5;
+}
+
+// Limite haute
+if (movement.y < minY) {
+    movement.y = minY;
+    movement.speedY *= -0.5;
+}
+
+            // APPLICATION DU MOUVEMENT
+            ball.setAttribute("cx", movement.startX + movement.x);
+            ball.setAttribute("cy", movement.startY + movement.y);
+        });
+    }
+
+   // RETOMBÉE DES BOULES
+    else if (window.chuteBoules) {
+        const centreCageX = 150;
+        const centreCageY = 150;
+        const rayonDisponible = 76;
+
+        balls.forEach((ball, i) => {
+            const movement = movements[i];
+
+            // GRAVITÉ ET DÉPLACEMENT
+            movement.speedY += 0.04;
+            movement.y += movement.speedY;
+            movement.x += movement.speedX;
+            movement.speedX *= 0.98;
+
+            // LIMITES HORIZONTALES
+            let positionX = movement.startX + movement.x;
+            if (positionX < 100) {
+                movement.x = 100 - movement.startX;
+                movement.speedX = 0;
+                positionX = 100;
+            }
+            if (positionX > 200) {
+                movement.x = 200 - movement.startX;
+                movement.speedX = 0;
+                positionX = 200;
+            }
+
+            // FOND ARRONDI : LIMITE BASSE SELON X
+            const distanceX = positionX - centreCageX;
+            const fondAbsolu = centreCageY + Math.sqrt(
+                Math.max(0, rayonDisponible * rayonDisponible - distanceX * distanceX)
+            );
+            const fondRelatif = fondAbsolu - movement.startY;
+
+            if (movement.y >= fondRelatif) {
+                movement.y = fondRelatif;
+                movement.speedY = 0;
+                movement.speedX = 0;
+            }
+
+            ball.setAttribute("cx", movement.startX + movement.x);
+            ball.setAttribute("cy", movement.startY + movement.y);
+        });
+
+        // LE NUMÉRO EST RÉVÉLÉ AVANT LA FIN DE LA RETOMBÉE
+        if (!window.numeroDejaRevelePendantChute && performance.now() - window.chuteStartTime >= 1200) {
+            window.numeroDejaRevelePendantChute = true;
+            if (typeof window.tirerNumeroVingo === "function") window.tirerNumeroVingo();
+        }
+
+        // FIN : TOUTES LES BOULES ONT TOUCHÉ LE FOND
+        const toutesLesBoulesPosees = movements.every(
+            movement => movement.speedY === 0
+        );
+
+        if (toutesLesBoulesPosees) {
+            window.chuteBoules = false;
+            window.remettreBoulesAuRepos();
+            // Sécurité si la retombée est exceptionnellement courte
+            if (!window.numeroDejaRevelePendantChute && typeof window.tirerNumeroVingo === "function") {
+                window.numeroDejaRevelePendantChute = true;
+                window.tirerNumeroVingo();
+            }
+            const boutonPrincipal = document.getElementById("draw-number-button");
+            if (boutonPrincipal && !window.tousLesNumerosVingoTires) boutonPrincipal.disabled = false;
+        }
+    }
+
+
+// RELANCE DE L'ANIMATION
+requestAnimationFrame(animateBalls);
+}
+
+// LANCEMENT DE L'ANIMATION
+animateBalls(); 
+</script>
+<script type="module">
+    import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js';
+    const container = document.getElementById("manivelle-3d");
+    const scene = new THREE.Scene();
+    const manivelleGroup = new THREE.Group();
+
+    const camera = new THREE.PerspectiveCamera(
+    45,
+    1,
+    0.1,
+    100
+);
+
+camera.position.z = 5;
+
+const renderer = new THREE.WebGLRenderer({
+    alpha: true,
+    antialias: true
+});
+
+renderer.setSize(330, 330);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+container.appendChild(renderer.domElement);
+
+// CREATION DU MANIVELLE
+const geometry = new THREE.CapsuleGeometry(0.075, 0.20, 4, 8);
+const material = new THREE.MeshBasicMaterial({
+    color: "#5BA9C2"
+});
+
+const manche = new THREE.Mesh(geometry, material);
+manche.position.set(1.35, 0, 0);
+manche.rotation.z = Math.PI / 2;
+
+manivelleGroup.add(manche);
+
+// BRAS VERTICAL DE LA MANIVELLE
+const geometryVertical = new THREE.CapsuleGeometry(0.075, 0.33, 4, 8);
+
+const brasVertical = new THREE.Mesh(geometryVertical, material);
+
+brasVertical.position.set(1.50, 0.24, 0);
+
+manivelleGroup.add(brasVertical);
+
+// BRAS HORIZONTAL SUPERIEUR
+const geometryHorizontal = new THREE.CapsuleGeometry(0.075, 0.20, 4, 8);
+const brasHorizontal = new THREE.Mesh(geometryHorizontal, material);
+brasHorizontal.rotation.z = Math.PI / 2;
+brasHorizontal.position.set(1.65, 0.48, 0);
+
+manivelleGroup.add(brasHorizontal);
+
+// PIVOT DE LA MANIVELLE
+const pivot = new THREE.Group();
+pivot.position.set(1.30, 0, 0);
+
+manivelleGroup.position.set(-1.30, 0, 0);
+manivelleGroup.scale.set(1.2, 1.2, 1.2);
+pivot.add(manivelleGroup);
+scene.add(pivot);
+
+// ANIMATION DE LA MANIVELLE
+let mouvement = 0;
+let enAnimation = false;
+
+const boutonTirage = document.getElementById("draw-number-button");
+
+window.lancerBrassageVingo = function () {
+    // RÉINITIALISATION DANS LA POSITION DE REPOS EN ARC
+    window.remettreBoulesAuRepos();
+    movements.forEach((movement) => {
+        movement.speedX = (Math.random() - 0.5) * 1.5;
+        movement.speedY = - (Math.random() * 4 + 2);
+    });
+    // LANCEMENT DU BRASSAGE
+    mouvement = 0;
+    enAnimation = true;
+    window.chuteBoules = false;
+    window.boulesEnMouvement = true;
+    boutonTirage.disabled = true;
+};
+
+function animateManivelle() {
+    if (enAnimation) {
+        mouvement += 0.063; // Tour de manivelle environ 1 seconde plus long que la version précédente
+
+        if (mouvement >= Math.PI * 2) {
+    mouvement = Math.PI * 2;
+    enAnimation = false;
+    window.boulesEnMouvement = false;
+    window.chuteBoules = true;
+    window.chuteStartTime = performance.now();
+    window.numeroDejaRevelePendantChute = false;
+
+    boutonTirage.disabled = true;
+}
+
+        pivot.rotation.x = mouvement;
+    }
+
+    renderer.render(scene, camera);
+    requestAnimationFrame(animateManivelle);
+}
+
+animateManivelle();
+
+</script>
+
+<script>
+// GRILLE VINGO : marquage manuel pour le moment
+(function () {
+    const grid = document.getElementById('number-grid');
+    const counter = document.getElementById('grid-counter');
+    const resetButton = document.getElementById('grid-reset');
+    const letters = ['V', 'I', 'N', 'G', 'O'];
+    const markedNumbers = new Set();
+
+    // En-têtes des colonnes
+    letters.forEach(letter => {
+        const header = document.createElement('div');
+        header.className = 'grid-cell grid-header';
+        header.textContent = letter;
+        grid.appendChild(header);
+    });
+
+    // 15 lignes : chaque colonne contient sa plage de 15 numéros
+    for (let row = 0; row < 15; row++) {
+        letters.forEach((letter, column) => {
+            const number = column * 15 + row + 1;
+            const cell = document.createElement('button');
+            cell.type = 'button';
+            cell.className = 'grid-cell';
+            cell.textContent = number;
+            cell.dataset.number = number;
+            cell.dataset.column = letter;
+            cell.setAttribute('aria-pressed', 'false');
+            cell.title = 'Cliquer pour marquer le numéro ' + number;
+            cell.addEventListener('click', () => {
+                if (markedNumbers.has(number)) {
+                    markedNumbers.delete(number);
+                    cell.classList.remove('called');
+                    cell.setAttribute('aria-pressed', 'false');
+                } else {
+                    markedNumbers.add(number);
+                    cell.classList.add('called');
+                    cell.setAttribute('aria-pressed', 'true');
+                }
+                updateCounter();
+            });
+            grid.appendChild(cell);
+        });
+    }
+
+    function updateCounter() {
+        counter.textContent = markedNumbers.size + ' / 75 numéros cochés';
+    }
+
+    // Fonction qui pourra être appelée plus tard par le tirage automatique
+    window.marquerNumeroVingo = function (number) {
+        const cell = grid.querySelector('[data-number="' + number + '"]');
+        if (!cell || markedNumbers.has(number)) return;
+        markedNumbers.add(number);
+        cell.classList.add('called');
+        cell.setAttribute('aria-pressed', 'true');
+        updateCounter();
+    };
+
+    // TIRAGE MANUEL D'UN NUMÉRO UNIQUE, AVEC LETTRE ET MISE À JOUR DE LA GRILLE
+    const drawButton = document.getElementById('draw-number-button');
+    const drawLetter = document.getElementById('draw-letter');
+    const drawNumber = document.getElementById('draw-number');
+    const drawStatus = document.getElementById('draw-status');
+    const drawnNumbers = new Set();
+    const letterByNumber = number => ['V', 'I', 'N', 'G', 'O'][Math.floor((number - 1) / 15)];
+
+    // Tirage appelé uniquement à la fin du brassage et de la retombée
+    window.tousLesNumerosVingoTires = false;
+    window.tirerNumeroVingo = function () {
+        const available = [];
+        for (let n = 1; n <= 75; n++) {
+            if (!drawnNumbers.has(n)) available.push(n);
+        }
+        if (available.length === 0) {
+            drawStatus.textContent = 'Tous les 75 numéros ont été tirés !';
+            drawButton.disabled = true;
+            window.tousLesNumerosVingoTires = true;
+            return;
+        }
+        const number = available[Math.floor(Math.random() * available.length)];
+        const letter = letterByNumber(number);
+        drawnNumbers.add(number);
+        drawLetter.textContent = letter;
+        drawNumber.textContent = number;
+
+        // Couleur du grand affichage identique à celle de la colonne dans la grille
+        const colorsByLetter = {
+            V: '#39a36b',
+            I: '#e6c84f',
+            N: '#438fc8',
+            G: '#9875c2',
+            O: '#e88b43'
+        };
+        const drawDisplay = document.getElementById('draw-display');
+        drawLetter.style.color = colorsByLetter[letter];
+        drawNumber.style.color = colorsByLetter[letter];
+        drawDisplay.style.borderColor = colorsByLetter[letter];
+
+        drawStatus.textContent = 'Tirage ' + drawnNumbers.size + ' / 75';
+        drawDisplay.classList.remove('reveal-number');
+        void drawDisplay.offsetWidth; // relance l'animation pour chaque tirage
+        drawDisplay.classList.add('reveal-number');
+        window.marquerNumeroVingo(number);
+        if (drawnNumbers.size === 75) {
+            drawButton.disabled = true;
+            window.tousLesNumerosVingoTires = true;
+            drawStatus.textContent = 'Tous les 75 numéros ont été tirés !';
+        }
+    };
+
+    // Le bouton principal lance la machine (le tirage réel est déclenché après le brassage).
+    drawButton.addEventListener('click', () => {
+        if (drawButton.disabled) return;
+        drawButton.disabled = true;
+        if (typeof window.lancerBrassageVingo === 'function') window.lancerBrassageVingo();
+    });
+
+    resetButton.addEventListener('click', () => {
+        markedNumbers.clear();
+        drawnNumbers.clear();
+        drawLetter.textContent = '?';
+        drawNumber.textContent = '?';
+        drawLetter.style.color = '#555';
+        drawNumber.style.color = '#555';
+        document.getElementById('draw-display').style.borderColor = 'var(--green)';
+        drawStatus.textContent = 'En attente du tirage...';
+        drawButton.disabled = false;
+        window.tousLesNumerosVingoTires = false;
+        grid.querySelectorAll('.grid-cell[data-number]').forEach(cell => {
+            cell.classList.remove('called');
+            cell.setAttribute('aria-pressed', 'false');
+        });
+        updateCounter();
+    });
+})();
+</script>
+
+</body>
+</html>
