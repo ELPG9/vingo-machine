@@ -1,6 +1,6 @@
-
 <!DOCTYPE html>
 <html lang="fr">
+
 <head>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -10,8 +10,23 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>VINGO - Le grand tirage</title>
 
+    <!--
+        PLAN DU FICHIER
+        1. CSS : couleurs, mise en page, machine, affichage du résultat, grille, responsive
+        2. HTML : structure de la page, machine, zone du numéro tiré, grille
+        3. JavaScript : création et animation des boules, brassage et retombée
+        4. Three.js : création et animation de la manivelle en 3D
+        5. JavaScript : construction de la grille, marquage, tirage réel et réinitialisation
+
+        IMPORTANT : cette version est annotée et organisée pour faciliter la lecture.
+        Les valeurs, les fonctions et le fonctionnement existant sont conservés.
+    -->
+
     <style>
-        /* COULEURS ET STYLE GENERAL */
+        /* ============================================================
+           1. COULEURS ET VARIABLES GLOBALES
+           Les variables ici permettent de réutiliser les couleurs partout.
+           ============================================================ */
 
         :root {
             --cream: #303238;
@@ -24,7 +39,9 @@
             --light: #d8c499;
         }
 
-        /* BASE DE LA PAGE */
+        /* ============================================================
+           2. BASE DE LA PAGE : réglages communs à tous les éléments
+           ============================================================ */
 
         * {
             box-sizing: border-box;
@@ -38,11 +55,14 @@
             font-family: 'Concert One', sans-serif;
         }
 
-        /* MISE EN PAGE PAYSAGE */
+        /* ============================================================
+           3. MISE EN PAGE GÉNÉRALE ET VERSION GRAND ÉCRAN
+           ============================================================ */
         header {
             text-align: center;
             margin-bottom: 18px;
         }
+
         h1 {
             font-family: 'Concert One', sans-serif;
             font-size: 64px;
@@ -50,7 +70,12 @@
             letter-spacing: 5px;
             color: #d8c499;
         }
-        header p { font-size: 18px; margin-top: 4px; }
+
+        header p {
+            font-size: 18px;
+            margin-top: 4px;
+        }
+
         .main-container {
             width: 100%;
             max-width: none;
@@ -61,7 +86,12 @@
             grid-template-rows: auto 1fr;
             gap: 14px;
         }
-        header { grid-column: 1 / -1; }
+
+        header {
+            grid-column: 1 / -1;
+        }
+
+        /* ZONE DE LA MACHINE : panneau gauche avec cage et tirage */
         .machine-area {
             background: #26282d;
             border: 0;
@@ -76,6 +106,8 @@
             gap: 42px;
             color: #d8c499;
         }
+
+        /* EMPLACEMENT DE LA CAGE : taille, halo lumineux et centrage */
         .machine-placeholder {
             position: relative;
             width: 100%;
@@ -90,7 +122,9 @@
             align-items: center;
             justify-content: center;
         }
+
         /* Lumière diffuse plus visible, centrée derrière la cage */
+        /* HALO TURQUOISE : lumière diffuse derrière la cage */
         .machine-placeholder::before {
             content: "";
             position: absolute;
@@ -105,653 +139,1081 @@
             pointer-events: none;
             z-index: 0;
         }
-        .machine-placeholder svg { width: 430px; height: 430px; flex: none; position: relative; z-index: 1; }
-        #manivelle-3d { position: absolute; width: 430px; height: 430px; top: 0; left: 50%; transform: translateX(-50%); pointer-events: none; z-index: 2; }
-        #manivelle-3d canvas { display: block; width: 430px !important; height: 430px !important; }
-        .machine-placeholder h2, .machine-placeholder p { display: none; }
-        .draw-placeholder { width: 100%; text-align: center; }
-        .draw-placeholder h2 { margin: 0 0 8px; font-size: 16px; letter-spacing: 2px; font-weight: normal; }
+
+        /* SVG de la cage prototype intégré, sans ancien overlay de manivelle 3D */
+        .machine-placeholder svg {
+            width: 430px;
+            height: 430px;
+            flex: none;
+            position: relative;
+            z-index: 1;
+        }
+
+        .machine-placeholder h2,
+        .machine-placeholder p {
+            display: none;
+        }
+
+        /* ZONE DU RÉSULTAT : boule affichée après le tirage */
+        .draw-placeholder {
+            width: 100%;
+            text-align: center;
+        }
+
+        .draw-placeholder h2 {
+            margin: 0 0 8px;
+            font-size: 16px;
+            letter-spacing: 2px;
+            font-weight: normal;
+        }
+
+        /* GRAND AFFICHAGE DU NUMÉRO TIRÉ */
         .number-display {
-            width: 301px; height: 301px; margin: 12px auto 18px;
-            background: white; border: 24px solid var(--green); border-radius: 50%;
-            display: flex; align-items: center; justify-content: center;
-            font-family: Arial, sans-serif; flex-direction: column; line-height: 1; color: #555;
+            width: 301px;
+            height: 301px;
+            margin: 12px auto 18px;
+            background: white;
+            border: 24px solid var(--green);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: Arial, sans-serif;
+            flex-direction: column;
+            line-height: 1;
+            color: #555;
         }
-        #draw-display.reveal-number { animation: numberReveal 650ms cubic-bezier(.2, 1.4, .4, 1) both; }
-        @keyframes numberReveal { 0% { transform: scale(.65) rotate(-12deg); opacity: 0; } 65% { transform: scale(1.08) rotate(3deg); opacity: 1; } 100% { transform: scale(1) rotate(0); opacity: 1; } }
-        .number-letter { font-size: 65px; font-weight: bold; margin-bottom: 4px; }
-        .number-value { font-size: 108px; font-weight: bold; }
-        .draw-button { padding: 14px 20px; border: 0; border-radius: 10px; background: var(--green); color: white; font-family: Arial, sans-serif; font-size: 16px; font-weight: bold; cursor: pointer; }
-        .draw-button:disabled { opacity: .55; cursor: not-allowed; }
-        .grid-area { background: #26282d; border: 0; border-radius: 24px; padding: 22px; min-width: 0; display: flex; flex-direction: column; justify-content: stretch; }
-        .grid-area h2 { text-align: left; margin: 0 0 14px; color: white; }
-        .number-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); grid-template-rows: repeat(16, minmax(0, 1fr)); gap: 5px; margin-top: 0; flex: 1; min-height: 0; }
-        .grid-cell { min-height: 0; border-radius: 6px; display: flex; align-items: center; justify-content: center; background: #373a40; color: #eee; font-family: Arial, sans-serif; font-size: 16px; border: 2px solid transparent; user-select: none; }
-        .grid-header { min-height: 36px; font-size: 20px; font-weight: bold; color: white; }
-        .grid-header:nth-child(1) { background: #39a36b; }
-        .grid-header:nth-child(2) { background: #e6c84f; color: #303030; }
-        .grid-header:nth-child(3) { background: #438fc8; }
-        .grid-header:nth-child(4) { background: #9875c2; }
-        .grid-header:nth-child(5) { background: #e88b43; }
-        .grid-cell.called { font-weight: bold; color: #202F40; border-color: #202F40; }
-        .grid-cell.called[data-column="V"] { background: #39a36b; }
-        .grid-cell.called[data-column="I"] { background: #e6c84f; }
-        .grid-cell.called[data-column="N"] { background: #438fc8; }
-        .grid-cell.called[data-column="G"] { background: #9875c2; }
-        .grid-cell.called[data-column="O"] { background: #e88b43; }
-        .grid-tools { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-top: 12px; flex-wrap: wrap; font-family: Arial, sans-serif; color: #b7c1ce; }
-        .grid-tools button { padding: 9px 14px; border: 0; border-radius: 8px; background: #3a3d43; color: white; cursor: pointer; font-weight: bold; }
-        .grid-tools button:hover { background: #4a4d53; }
+
+        /* ANIMATION D'APPARITION DU NUMÉRO */
+        #draw-display.reveal-number {
+            animation: numberReveal 650ms cubic-bezier(.2, 1.4, .4, 1) both;
+        }
+
+        @keyframes numberReveal {
+            0% {
+                transform: scale(.65) rotate(-12deg);
+                opacity: 0;
+            }
+
+            65% {
+                transform: scale(1.08) rotate(3deg);
+                opacity: 1;
+            }
+
+            100% {
+                transform: scale(1) rotate(0);
+                opacity: 1;
+            }
+        }
+
+        /* TYPOGRAPHIE DE LA LETTRE ET DU NUMÉRO */
+        .number-letter {
+            font-size: 65px;
+            font-weight: bold;
+            margin-bottom: 4px;
+        }
+
+        .number-value {
+            font-size: 108px;
+            font-weight: bold;
+        }
+
+        /* BOUTON POUR LANCER UN TIRAGE */
+        .draw-button {
+            display: block;
+            margin: 0 auto;
+            padding: 14px 20px;
+            border: 0;
+            border-radius: 10px;
+            background: var(--green);
+            color: white;
+            font-family: Arial, sans-serif;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .draw-button:disabled {
+            opacity: .55;
+            cursor: not-allowed;
+        }
+
+        /* BOUTON POUR RELANCER UNE PARTIE */
+        .restart-button {
+            display: block;
+            margin: 10px auto 0;
+            padding: 10px 16px;
+            border: 0;
+            border-radius: 8px;
+            background: #777b82;
+            color: white;
+            font-family: Arial, sans-serif;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .restart-button:hover {
+            background: #666a70;
+        }
+
+        /* La partie mobile est animée via son transform SVG, autour de (462,230). */
+
+        /* ============================================================
+           4. GRILLE VINGO : apparence des cases et des outils
+           ============================================================ */
+        .grid-area {
+            background: #26282d;
+            border: 0;
+            border-radius: 24px;
+            padding: 22px;
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            justify-content: stretch;
+        }
+
+        .grid-area h2 {
+            text-align: left;
+            margin: 0 0 14px;
+            color: white;
+        }
+
+        .number-grid {
+            display: grid;
+            grid-template-columns: repeat(5, minmax(0, 1fr));
+            grid-template-rows: repeat(16, minmax(0, 1fr));
+            gap: 5px;
+            margin-top: 0;
+            flex: 1;
+            min-height: 0;
+        }
+
+        .grid-cell {
+            min-height: 0;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #373a40;
+            color: #eee;
+            font-family: Arial, sans-serif;
+            font-size: 16px;
+            border: 2px solid transparent;
+            user-select: none;
+        }
+
+        .grid-header {
+            min-height: 36px;
+            font-size: 20px;
+            font-weight: bold;
+            color: white;
+        }
+
+        .grid-header:nth-child(1) {
+            background: #39a36b;
+        }
+
+        .grid-header:nth-child(2) {
+            background: #e6c84f;
+            color: #303030;
+        }
+
+        .grid-header:nth-child(3) {
+            background: #438fc8;
+        }
+
+        .grid-header:nth-child(4) {
+            background: #9875c2;
+        }
+
+        .grid-header:nth-child(5) {
+            background: #e88b43;
+        }
+
+        .grid-cell.called {
+            font-weight: bold;
+            color: #202F40;
+            border-color: #202F40;
+        }
+
+        .grid-cell.called[data-column="V"] {
+            background: #39a36b;
+        }
+
+        .grid-cell.called[data-column="I"] {
+            background: #e6c84f;
+        }
+
+        .grid-cell.called[data-column="N"] {
+            background: #438fc8;
+        }
+
+        .grid-cell.called[data-column="G"] {
+            background: #9875c2;
+        }
+
+        .grid-cell.called[data-column="O"] {
+            background: #e88b43;
+        }
+
+        .grid-tools {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            margin-top: 12px;
+            flex-wrap: wrap;
+            font-family: Arial, sans-serif;
+            color: #b7c1ce;
+        }
+
+        .grid-tools button {
+            padding: 9px 14px;
+            border: 0;
+            border-radius: 8px;
+            background: #3a3d43;
+            color: white;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .grid-tools button:hover {
+            background: #4a4d53;
+        }
+
+        /* ============================================================
+           5. ADAPTATION TABLETTE / PETITS ÉCRANS (900 px)
+           ============================================================ */
         @media (max-width: 900px) {
-            body { padding: 10px; }
-            .main-container { min-height: auto; grid-template-columns: 1fr; }
-            .number-grid { flex: none; grid-template-rows: repeat(16, auto); }
-            .machine-area { min-height: auto; }
-            header { grid-column: auto; }
-            .number-display { width: 220px; height: 220px; border-width: 16px; }
-            .grid-cell { min-height: 32px; font-size: 16px; }
+            body {
+                padding: 10px;
+            }
+
+            .main-container {
+                min-height: auto;
+                grid-template-columns: 1fr;
+            }
+
+            .number-grid {
+                flex: none;
+                grid-template-rows: repeat(16, auto);
+            }
+
+            .machine-area {
+                min-height: auto;
+            }
+
+            header {
+                grid-column: auto;
+            }
+
+            .number-display {
+                width: 220px;
+                height: 220px;
+                border-width: 16px;
+            }
+
+            .grid-cell {
+                min-height: 32px;
+                font-size: 16px;
+            }
         }
+
+        /* ============================================================
+           6. ADAPTATION TÉLÉPHONE (500 px)
+           ============================================================ */
         @media (max-width: 500px) {
-            .grid-area { padding: 12px; }
-            .number-grid { gap: 3px; }
-            .grid-cell { min-height: 29px; font-size: 14px; border-radius: 5px; }
-            .grid-header { min-height: 38px; font-size: 18px; }
+            .grid-area {
+                padding: 12px;
+            }
+
+            .number-grid {
+                gap: 3px;
+            }
+
+            .grid-cell {
+                min-height: 29px;
+                font-size: 14px;
+                border-radius: 5px;
+            }
+
+            .grid-header {
+                min-height: 38px;
+                font-size: 18px;
+            }
         }
     </style>
 </head>
 
 <body>
 
+    <!-- ============================================================
+         7. STRUCTURE HTML DE LA PAGE
+         ============================================================ -->
     <div class="main-container">
 
+        <!-- EN-TÊTE / TITRE DE L'APPLICATION -->
         <header>
             <h1>VINGO !</h1>
         </header>
 
+        <!-- ============================================================
+             8. PANNEAU DE LA MACHINE ET DU TIRAGE
+             ============================================================ -->
         <section class="machine-area">
+            <!-- Emplacement visuel de la cage SVG et de la manivelle 3D -->
             <div class="machine-placeholder">
-         <svg viewBox="0 0 300 300" width="300">
+                <!-- Cage intégrée depuis le prototype validé : dessin SVG et 20 boules statiques -->
+                <svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg" aria-label="Cage VINGO avec 20 boules">
 
-<g id="cage-mobile">
+                    <!--
+            --------------------------------------------------
+            1. DÉFINITION DE LA ZONE DANS LAQUELLE
+               LES BOULES ONT LE DROIT D'APPARAÎTRE
+            --------------------------------------------------
 
-<!-- FOND INTÉRIEUR DE LA CAGE -->
-<circle
-    cx="150"
-    cy="150"
-    r="96"
-    fill="#F8E8C8"
-    stroke="none"
-/>
+            sphereClip définit une forme elliptique.
 
-<!-- BOULES DE BINGO -->
+            Les boules qui dépassent de cette ellipse seront
+            masquées : elles restent visuellement à l'intérieur
+            de la cage.
+            -->
 
-<g id="balls-container"></g>
+                    <defs>
+                        <clipPath id="sphereClip">
+                            <ellipse cx="256" cy="235" rx="145" ry="160" />
+                        </clipPath>
+                    </defs>
 
-<!-- BARREAUX VERTICAUX MOBILES -->
 
-<path d="M 100 65 Q 70 150 100 235" fill="none" stroke="#202F40" stroke-width="4" stroke-linecap="round"/>
-<path d="M 200 65 Q 230 150 200 235" fill="none" stroke="#202F40" stroke-width="4" stroke-linecap="round"/>
-<path d="M 125 55 Q 105 150 125 245" fill="none" stroke="#202F40" stroke-width="4" stroke-linecap="round"/>
-<path d="M 175 55 Q 195 150 175 245" fill="none" stroke="#202F40" stroke-width="4" stroke-linecap="round"/>
+                    <!--
+            --------------------------------------------------
+            2. FOND DE LA CAGE
+            --------------------------------------------------
 
-<!-- BARREAU HORIZONTAL CENTRAL FIXE -->
+            C'est l'ellipse qui représente le fond de la cage.
 
-<line x1="55" y1="150" x2="250" y2="150" stroke="#202F40" stroke-width="4" stroke-linecap="round"/>
+            cx = position horizontale du centre
+            cy = position verticale du centre
+            rx = largeur du rayon
+            ry = hauteur du rayon
 
-<!-- BARREAU VERTICAL CENTRAL FIXE -->
+            fill = couleur de remplissage
+            stroke = couleur du contour
+            stroke-width = épaisseur du contour
+            -->
 
-<line x1="150" y1="55" x2="150" y2="250" stroke="#202F40" stroke-width="4" stroke-linecap="round"/>
+                    <!-- FOND INTÉRIEUR DE LA CAGE -->
+                    <ellipse cx="256" cy="235" rx="145" ry="160" fill="#f9e9cc" />
 
-<!-- BARREAUX HORIZONTAUX MOBILES -->
+                    <!--
+            --------------------------------------------------
+            3. LES BOULES À L'INTÉRIEUR DE LA CAGE
+            --------------------------------------------------
 
-<path d="M 65 100 Q 150 80 235 100" fill="none" stroke="#202F40" stroke-width="4" stroke-linecap="round"/>
-<path d="M 65 200 Q 150 220 235 200" fill="none" stroke="#202F40" stroke-width="4" stroke-linecap="round"/>
+            Le groupe <g> permet d'appliquer les mêmes
+            paramètres à toutes les boules du groupe.
 
-<!-- CONTOUR DE LA CAGE -->
-<circle
-    cx="150"
-    cy="150"
-    r="100"
-    fill="none"
-    stroke="#5BA9C2"
-    stroke-width="8"
-/>
+            clip-path :
+            limite l'affichage des boules à la forme de la cage.
 
-<!-- SUPPORTS DE LA CAGE -->
+            stroke :
+            couleur du contour de toutes les boules.
 
-<line x1="115" y1="245" x2="115" y2="270" stroke="#5BA9C2" stroke-width="10" stroke-linecap="round"/>
-<line x1="185" y1="245" x2="185" y2="270" stroke="#5BA9C2" stroke-width="10" stroke-linecap="round"/> 
+            stroke-width :
+            épaisseur du contour de toutes les boules.
 
-<!-- BASE DE LA CAGE -->
+            Chaque <circle> représente une boule.
 
-<line x1="90" y1="275" x2="210" y2="275" stroke="#5BA9C2" stroke-width="14" stroke-linecap="round"/>
+            cx = position horizontale
+            cy = position verticale
+            r  = rayon, donc taille de la boule
+            fill = couleur de la boule
 
-<!-- MANIVELLE -->
+            Pour modifier une boule, il faut donc modifier
+            les valeurs de son circle.
+            -->
 
-</svg>  
+                    <g clip-path="url(#sphereClip)" stroke="#40372f" stroke-width="5.5">
 
-<div id="manivelle-3d"></div>     
-    <h2>Notre machine</h2>
-    <p>La cage arrive bientôt 🎱</p>
-</div>
+                        <!-- ========================================= -->
+                        <!-- BOULES DE LA CAGE : 20 BOULES            -->
+                        <!-- ORDRE DE DESSIN : FOND VERS AVANT        -->
+                        <!-- ========================================= -->
 
-<div class="draw-placeholder">
-    <h2>Numéro tiré</h2>
-    <div class="number-display" id="draw-display" aria-live="polite">
-        <span class="number-letter" id="draw-letter">?</span>
-        <span class="number-value" id="draw-number">?</span>
-    </div>
-    <p id="draw-status">En attente du tirage...</p>
-    <button id="draw-number-button" class="draw-button" type="button">TIRER UN NUMÉRO</button>
-</div>
+
+                        <!-- ========================================= -->
+                        <!-- PALIER 4 : HAUT DE LA PILE - ARRIÈRE-PLAN -->
+                        <!-- ========================================= -->
+
+                        <!-- Boule violette -->
+                        <circle cx="140" cy="275" r="30" fill="#9777B4" />
+                        <circle cx="140" cy="275" r="20" fill="#FFFFFF" stroke="#9777B4" stroke-width="2.5" />
+
+                        <!-- Boule verte -->
+                        <circle cx="185" cy="280" r="30" fill="#3DA66C" />
+                        <circle cx="185" cy="280" r="20" fill="#FFFFFF" stroke="#3DA66C" stroke-width="2.5" />
+
+                        <!-- Boule jaune -->
+                        <circle cx="230" cy="270" r="30" fill="#C9AB49" />
+                        <circle cx="230" cy="270" r="20" fill="#FFFFFF" stroke="#C9AB49" stroke-width="2.5" />
+
+                        <!-- Boule rose -->
+                        <circle cx="275" cy="280" r="30" fill="#E589A8" />
+                        <circle cx="275" cy="280" r="20" fill="#FFFFFF" stroke="#E589A8" stroke-width="2.5" />
+
+                        <!-- Boule bleue -->
+                        <circle cx="320" cy="270" r="30" fill="#428FCB" />
+                        <circle cx="320" cy="270" r="20" fill="#FFFFFF" stroke="#428FCB" stroke-width="2.5" />
+
+                        <!-- Boule orange -->
+                        <circle cx="365" cy="280" r="30" fill="#E88A45" />
+                        <circle cx="365" cy="280" r="20" fill="#FFFFFF" stroke="#E88A45" stroke-width="2.5" />
+
+
+                        <!-- ========================================= -->
+                        <!-- PALIER 3 : MILIEU DE LA PILE              -->
+                        <!-- ========================================= -->
+
+                        <!-- Boule jaune -->
+                        <circle cx="150" cy="305" r="30" fill="#C9AB49" />
+                        <circle cx="150" cy="305" r="20" fill="#FFFFFF" stroke="#C9AB49" stroke-width="2.5" />
+
+                        <!-- Boule bleue -->
+                        <circle cx="200" cy="300" r="30" fill="#428FCB" />
+                        <circle cx="200" cy="300" r="20" fill="#FFFFFF" stroke="#428FCB" stroke-width="2.5" />
+
+                        <!-- Boule violette -->
+                        <circle cx="250" cy="315" r="30" fill="#9777B4" />
+                        <circle cx="250" cy="315" r="20" fill="#FFFFFF" stroke="#9777B4" stroke-width="2.5" />
+
+                        <!-- Boule verte -->
+                        <circle cx="300" cy="300" r="30" fill="#3DA66C" />
+                        <circle cx="300" cy="300" r="20" fill="#FFFFFF" stroke="#3DA66C" stroke-width="2.5" />
+
+                        <!-- Boule rose -->
+                        <circle cx="350" cy="310" r="30" fill="#E589A8" />
+                        <circle cx="350" cy="310" r="20" fill="#FFFFFF" stroke="#E589A8" stroke-width="2.5" />
+
+
+                        <!-- ========================================= -->
+                        <!-- PALIER 2 : MILIEU BAS                      -->
+                        <!-- ========================================= -->
+
+                        <!-- Boule verte -->
+                        <circle cx="170" cy="335" r="30" fill="#3DA66C" />
+                        <circle cx="170" cy="335" r="20" fill="#FFFFFF" stroke="#3DA66C" stroke-width="2.5" />
+
+                        <!-- Boule rose -->
+                        <circle cx="215" cy="325" r="30" fill="#E589A8" />
+                        <circle cx="215" cy="325" r="20" fill="#FFFFFF" stroke="#E589A8" stroke-width="2.5" />
+
+                        <!-- Boule bleue -->
+                        <circle cx="260" cy="340" r="30" fill="#428FCB" />
+                        <circle cx="260" cy="340" r="20" fill="#FFFFFF" stroke="#428FCB" stroke-width="2.5" />
+
+                        <!-- Boule violette -->
+                        <circle cx="310" cy="325" r="30" fill="#9777B4" />
+                        <circle cx="310" cy="325" r="20" fill="#FFFFFF" stroke="#9777B4" stroke-width="2.5" />
+
+                        <!-- Boule orange -->
+                        <circle cx="355" cy="335" r="30" fill="#E88A45" />
+                        <circle cx="355" cy="335" r="20" fill="#FFFFFF" stroke="#E88A45" stroke-width="2.5" />
+
+
+                        <!-- ========================================= -->
+                        <!-- PALIER 1 : FOND DE LA CAGE - PREMIER PLAN -->
+                        <!-- ========================================= -->
+
+                        <!-- Boule bleue -->
+                        <circle cx="220" cy="360" r="30" fill="#428FCB" />
+                        <circle cx="220" cy="360" r="20" fill="#FFFFFF" stroke="#428FCB" stroke-width="2.5" />
+
+                        <!-- Boule verte -->
+                        <circle cx="265" cy="355" r="30" fill="#3DA66C" />
+                        <circle cx="265" cy="355" r="20" fill="#FFFFFF" stroke="#3DA66C" stroke-width="2.5" />
+
+                        <!-- Boule rose -->
+                        <circle cx="305" cy="365" r="30" fill="#E589A8" />
+                        <circle cx="305" cy="365" r="20" fill="#FFFFFF" stroke="#E589A8" stroke-width="2.5" />
+
+                        <!-- Boule violette -->
+                        <circle cx="345" cy="350" r="30" fill="#9777B4" />
+                        <circle cx="345" cy="350" r="20" fill="#FFFFFF" stroke="#9777B4" stroke-width="2.5" />
+
+
+                    </g>
+
+                    <!-- CONTOUR DE LA CAGE -->
+                    <ellipse cx="256" cy="235" rx="145" ry="160" fill="none" stroke="#40372f" stroke-width="10" />
+
+                    <!--
+            --------------------------------------------------
+            4. BARREAUX HORIZONTAUX DE LA CAGE
+            --------------------------------------------------
+
+            Ces lignes sont dessinées avec des courbes.
+
+            fill="none" :
+            aucune zone intérieure à remplir.
+
+            stroke :
+            couleur des barreaux.
+
+            stroke-width :
+            épaisseur des barreaux.
+
+            stroke-linecap="round" :
+            extrémités arrondies des traits.
+
+            Les commandes du path :
+
+            M = déplacer le point de départ
+            Q = courbe quadratique
+                 (un point de contrôle pour créer la courbe)
+
+            Les coordonnées déterminent la position
+            et la forme de chaque barreau.
+            -->
+
+                    <g fill="none" stroke="#40372f" stroke-width="6" stroke-linecap="round">
+
+                        <!-- BARREAUX VERTICAUX MOBILES -->
+
+                        <path d="M 182 96 Q 137 235 182 374" fill="none" stroke="#40372f" stroke-width="6"
+                            stroke-linecap="round" />
+
+                        <path d="M 330 96 Q 375 235 330 374" fill="none" stroke="#40372f" stroke-width="6"
+                            stroke-linecap="round" />
+
+                        <path d="M 219 79 Q 189 235 219 390" fill="none" stroke="#40372f" stroke-width="6"
+                            stroke-linecap="round" />
+
+                        <path d="M 293 79 Q 323 235 293 390" fill="none" stroke="#40372f" stroke-width="6"
+                            stroke-linecap="round" />
+
+
+                        <!-- BARREAU HORIZONTAL CENTRAL FIXE -->
+
+                        <line x1="114" y1="235" x2="405" y2="235" stroke="#40372f" stroke-width="6"
+                            stroke-linecap="round" />
+
+
+                        <!-- BARREAU VERTICAL CENTRAL FIXE -->
+
+                        <line x1="256" y1="79" x2="256" y2="395" stroke="#40372f" stroke-width="6"
+                            stroke-linecap="round" />
+
+
+                        <!-- BARREAUX HORIZONTAUX MOBILES -->
+
+                        <path d="M 130 153 Q 256 120 383 153" fill="none" stroke="#40372f" stroke-width="6"
+                            stroke-linecap="round" />
+
+                        <path d="M 130 317 Q 256 350 383 317" fill="none" stroke="#40372f" stroke-width="6"
+                            stroke-linecap="round" />
+
+                    </g>
+
+
+                    <!--
+            --------------------------------------------------
+            5. SOCLE DE LA MACHINE
+            --------------------------------------------------
+
+            Le socle est dessiné avec un path.
+
+            M = point de départ
+            Q = courbe permettant d'arrondir les coins
+            L = ligne droite
+            Z = fermeture de la forme
+
+            fill = couleur intérieure du socle
+            stroke = couleur du contour
+            stroke-width = épaisseur du contour
+            stroke-linejoin = arrondi des raccords
+
+            Pour modifier sa forme, il faut modifier
+            les coordonnées de ce path.
+            -->
+
+                    <path
+                        d="M94 432 Q82 432 75 443 L58 466 Q53 478 67 478 L445 478 Q459 478 453 466 L436 443 Q429 432 416 432 Z"
+                        fill="#8b7d72" stroke="#40372f" stroke-width="7" stroke-linejoin="round" />
+
+
+                    <!--
+            --------------------------------------------------
+            6. SUPPORTS DE LA CAGE
+            --------------------------------------------------
+
+            Les deux supports sont regroupés dans un <g>.
+
+            Paramètres communs :
+            couleur du contour
+            épaisseur du contour
+            raccords arrondis
+
+            Chaque path dessine un support.
+
+            fill = couleur intérieure des supports.
+            -->
+
+                    <g stroke="#40372f" stroke-width="7" stroke-linejoin="round">
+
+                        <!-- Support gauche -->
+                        <path d="M87 223 Q87 211 101 211 L113 211 L113 445 L87 445 Z" fill="#8b7d72" />
+
+                        <!--
+            --------------------------------------------------
+            7. MANIVELLE À DROITE DE LA CAGE
+            --------------------------------------------------
+
+            La manivelle est actuellement statique.
+
+            Le groupe <g> contient :
+            - le bras de la manivelle
+            - la boule/poignée située en haut
+
+            stroke = couleur du contour
+            stroke-width = épaisseur du contour
+            stroke-linejoin = raccords arrondis
+            stroke-linecap = extrémités arrondies
+
+            Le premier path dessine le bras.
+
+            Le cercle dessine la poignée.
+
+            Pour modifier la position :
+            les coordonnées du path et du circle
+            doivent être ajustées.
+            -->
+
+
+
+                        <!-- Petite tige fixe : elle reste solidaire du support -->
+                        <g id="manivelle-base-fixe" stroke-linejoin="round" stroke-linecap="round">
+                            <path d="M414 230 L462 230" fill="none" stroke="#40372f" stroke-width="28" />
+                            <path d="M414 230 L462 230" fill="none" stroke="#8b7d72" stroke-width="12" />
+                        </g>
+
+                        <!-- Partie mobile : uniquement la longue tige et la poignée -->
+                        <g id="manivelle-animée" stroke-linejoin="round" stroke-linecap="round">
+                            <path id="manivelle-tige-contour" d="M462 230 L462 132" fill="none" stroke="#40372f"
+                                stroke-width="28" />
+                            <path id="manivelle-tige-interieur" d="M462 230 L462 132" fill="none" stroke="#8b7d72"
+                                stroke-width="12" />
+                            <circle id="manivelle-poignee" cx="462" cy="105" r="29" fill="#40372f" stroke="#40372f"
+                                stroke-width="7" />
+                        </g>
+
+                        <!-- Support droit -->
+                        <path d="M399 211 L411 211 Q425 211 425 223 L425 445 L399 445 Z" fill="#8b7d72" />
+
+                    </g>
+
+
+
+
+                </svg>
+
+                <h2>Notre machine</h2>
+                <p>La cage arrive bientôt 🎱</p>
+            </div>
+
+            <!-- AFFICHAGE DU RÉSULTAT DU TIRAGE ET BOUTON -->
+            <div class="draw-placeholder">
+                <h2>Numéro tiré</h2>
+                <div class="number-display" id="draw-display" aria-live="polite">
+                    <span class="number-letter" id="draw-letter">?</span>
+                    <span class="number-value" id="draw-number">?</span>
+                </div>
+                <p id="draw-status">En attente du tirage...</p>
+                <button id="draw-number-button" class="draw-button" type="button">TIRER UN NUMÉRO</button>
+                <button id="grid-reset" class="restart-button" type="button">RELANCER UNE PARTIE</button>
+            </div>
         </section>
 
+        <!-- ============================================================
+             9. PANNEAU DE LA GRILLE ET COMMANDES DE GRILLE
+             ============================================================ -->
         <section class="grid-area">
             <h2>Grille des numéros</h2>
             <div id="number-grid" class="number-grid" aria-label="Grille VINGO des numéros de 1 à 75"></div>
             <div class="grid-tools">
                 <span id="grid-counter">0 / 75 numéros cochés</span>
-                <button id="grid-reset" type="button">Réinitialiser la grille</button>
             </div>
         </section>
 
     </div>
-<script>
-    // ANIMATION DES BOULES DE BINGO
-const manivelle = document.getElementById("manivelle");
-let angleManivelle = 0;
-const pivotX = 250;
-const pivotY = 150;
-let sensManivelle = 1;
+    <script>
+        // ============================================================
+        // ANIMATION DES BOULES : BRASSAGE + RETOMBÉE (MOUVEMENT SIMPLE)
+        // Reprise du système de mouvement de la version fonctionnelle.
+        // La manivelle, la grille et le tirage restent inchangés.
+        // ============================================================
+        (function () {
+            const svg = document.querySelector('.machine-placeholder svg');
+            const ballGroup = svg.querySelector('g[clip-path="url(#sphereClip)"]');
+            const circles = Array.from(ballGroup.querySelectorAll('circle'));
+            const balls = [];
 
-// MOUVEMENT AVANT / ARRIÈRE DE LA MANIVELLE
-function tournerManivelle() {
-    angleManivelle += 0.1 * sensManivelle;
-
-    if (angleManivelle >= 4) {
-        sensManivelle = -1;
-    }
-
-    if (angleManivelle <= -5) {
-        sensManivelle = 1;
-    }
-
-    manivelle.setAttribute(
-        "transform",
-        `rotate(${angleManivelle} 250 150)`
-    );
-}
-
-// CRÉATION DES 75 BOULES
-
-const balls = [];
-const ballsContainer = document.getElementById("balls-container");
-
-const couleurs = [
-    "#F4A6A6",
-    "#F6D77A",
-    "#9ED5A5",
-    "#83CDE0",
-    "#F4B47C"
-];
-
-for (let i = 1; i <= 75; i++) {
-
-    const ball = document.createElementNS("http://www.w3.org/2000/svg", "circle");
-
-    ball.setAttribute("id", `ball-${i}`);
-    ball.setAttribute("r", "20");
-    ball.setAttribute("fill", couleurs[(i - 1) % couleurs.length]);
-    ball.setAttribute("stroke", "#202F40");
-    ball.setAttribute("stroke-width", "2");
-
-    ballsContainer.appendChild(ball);
-    balls.push(ball);
-}
-
-// PARAMÈTRES DU MOUVEMENT
-
-const movements = [];
-
-balls.forEach((ball, i) => {
-    const startX = 110 + Math.random() * 80;
-    const startY = 205 + Math.random() * 10;
-
-    movements.push({
-        startX: startX,
-        startY: startY,
-        x: 0,
-        y: 0,
-        speedX: (Math.random() - 0.5) * 3,
-        speedY: (Math.random() - 0.5) * 6,
-        rebond: Math.random() < 0.25,
-        aRebondi: false
-    });
-
-    ball.setAttribute("cx", startX);
-    ball.setAttribute("cy", startY);
-});
-
-console.log("Nombre de boules récupérées :", balls.length);
-
-// LIMITES DE DÉPLACEMENT AUTOUR DE LA POSITION INITIALE
-const minX = -30;
-const maxX = 30;
-const minY = -75;
-const maxY = 5;
-
-// POSITION DE REPOS : LES BOULES SUIVENT LE FOND ARRONDI
-window.remettreBoulesAuRepos = function remettreBoulesAuRepos() {
-    const centreX = 150;
-    const centreY = 150;
-    const rayonDisponible = 76; // cercle intérieur moins le rayon des boules
-
-    movements.forEach((movement, i) => {
-        const x = movement.startX;
-        const distanceX = x - centreX;
-        const y = centreY + Math.sqrt(
-            Math.max(0, rayonDisponible * rayonDisponible - distanceX * distanceX)
-        );
-
-        movement.x = 0;
-        movement.y = y - movement.startY;
-        movement.speedX = 0;
-        movement.speedY = 0;
-
-        balls[i].setAttribute("cx", x);
-        balls[i].setAttribute("cy", y);
-    });
-};
-
-// Placement initial au chargement
-window.remettreBoulesAuRepos();
-
-// ANIMATION DES BOULES
-window.boulesEnMouvement = false;
-window.chuteBoules = false;
-window.chuteStartTime = 0;
-window.numeroDejaRevelePendantChute = false;
-
-function animateBalls() {
-
-    // BRASSAGE
-    if (window.boulesEnMouvement) {
-
-        balls.forEach((ball, i) => {
-            const movement = movements[i];
-
-            movement.x += movement.speedX;
-            movement.y += movement.speedY;
-
-            // GRAVITÉ
-            movement.speedY += 0.02;
-
-            // REBOND HORIZONTAL
-            if (movement.x < minX || movement.x > maxX) {
-                movement.speedX *= -1;
+            // Chaque boule est composée d'un cercle extérieur et d'un cercle intérieur.
+            for (let i = 0; i < circles.length; i += 2) {
+                const outer = circles[i];
+                const inner = circles[i + 1];
+                const startX = Number(outer.getAttribute('cx'));
+                const startY = Number(outer.getAttribute('cy'));
+                balls.push({
+                    outer, inner,
+                    startX, startY,
+                    x: 0, y: 0,
+                    speedX: (Math.random() - 0.5) * 3,
+                    speedY: (Math.random() - 0.5) * 6,
+                    offsetX: Number(inner.getAttribute('cx')) - startX,
+                    offsetY: Number(inner.getAttribute('cy')) - startY
+                });
             }
 
-            // REBOND VERTICAL DANS LA CAGE
-const positionX = movement.startX + movement.x;
+            // Limites du brassage, adaptées à la taille de cette cage SVG.
+            const minX = -30, maxX = 30;
+            const minY = -200, maxY = 5;
+            const centerX = 256, centerY = 235;
+            const radiusX = 145 - 4 - 30;
+            const radiusY = 160 - 4 - 30;
 
-const centreCageX = 150;
-const centreCageY = 150;
-
-// Rayon réel moins l'épaisseur du contour et la taille des boules
-const rayonBoules = 20;
-const rayonInterieur = 100 - 4 - rayonBoules;
-
-const distanceX = positionX - centreCageX;
-
-// Limite basse adaptée à la forme du cercle
-const limiteBasAbsolue = centreCageY + Math.sqrt(
-    Math.max(0, rayonInterieur * rayonInterieur - distanceX * distanceX)
-);
-
-// Conversion en mouvement relatif
-const limiteBas = limiteBasAbsolue - movement.startY;
-
-if (movement.y > limiteBas) {
-    movement.y = limiteBas;
-    movement.speedY *= -0.5;
-}
-
-// Limite haute
-if (movement.y < minY) {
-    movement.y = minY;
-    movement.speedY *= -0.5;
-}
-
-            // APPLICATION DU MOUVEMENT
-            ball.setAttribute("cx", movement.startX + movement.x);
-            ball.setAttribute("cy", movement.startY + movement.y);
-        });
-    }
-
-   // RETOMBÉE DES BOULES
-    else if (window.chuteBoules) {
-        const centreCageX = 150;
-        const centreCageY = 150;
-        const rayonDisponible = 76;
-
-        balls.forEach((ball, i) => {
-            const movement = movements[i];
-
-            // GRAVITÉ ET DÉPLACEMENT
-            movement.speedY += 0.04;
-            movement.y += movement.speedY;
-            movement.x += movement.speedX;
-            movement.speedX *= 0.98;
-
-            // LIMITES HORIZONTALES
-            let positionX = movement.startX + movement.x;
-            if (positionX < 100) {
-                movement.x = 100 - movement.startX;
-                movement.speedX = 0;
-                positionX = 100;
-            }
-            if (positionX > 200) {
-                movement.x = 200 - movement.startX;
-                movement.speedX = 0;
-                positionX = 200;
+            function drawBall(b) {
+                b.outer.setAttribute('cx', b.startX + b.x);
+                b.outer.setAttribute('cy', b.startY + b.y);
+                b.inner.setAttribute('cx', b.startX + b.x + b.offsetX);
+                b.inner.setAttribute('cy', b.startY + b.y + b.offsetY);
             }
 
-            // FOND ARRONDI : LIMITE BASSE SELON X
-            const distanceX = positionX - centreCageX;
-            const fondAbsolu = centreCageY + Math.sqrt(
-                Math.max(0, rayonDisponible * rayonDisponible - distanceX * distanceX)
-            );
-            const fondRelatif = fondAbsolu - movement.startY;
+            // Position de repos : retour aux positions initiales définies dans le SVG.
+            window.remettreBoulesAuRepos = function () {
+                balls.forEach(b => {
+                    b.x = 0;
+                    b.y = 0;
+                    b.speedX = 0;
+                    b.speedY = 0;
+                    drawBall(b);
+                });
+            };
+        window.remettreBoulesAuRepos();
 
-            if (movement.y >= fondRelatif) {
-                movement.y = fondRelatif;
-                movement.speedY = 0;
-                movement.speedX = 0;
+        window.boulesEnMouvement = false;
+        window.chuteBoules = false;
+        window.chuteStartTime = 0;
+        window.chuteDuration = 0;
+        window.chutePositionsInitiales = [];
+        window.numeroDejaRevelePendantChute = false;
+
+        let animationFrame = 0;
+
+        function animateBalls() {
+            if (window.boulesEnMouvement) {
+                balls.forEach(b => {
+                    b.x += b.speedX;
+                    b.y += b.speedY;
+                    b.speedY += 0.01;
+
+                    if (b.x < minX || b.x > maxX) b.speedX *= -1;
+
+                    const absoluteX = b.startX + b.x;
+                    const dx = absoluteX - centerX;
+                    const floorAbsolute = centerY + radiusY * Math.sqrt(
+                        Math.max(0, 1 - (dx * dx) / (radiusX * radiusX))
+                    );
+                    const floorRelative = floorAbsolute - b.startY;
+
+                    if (b.y > floorRelative) {
+                        b.y = floorRelative;
+                        b.speedY *= -0.5;
+                    }
+                    if (b.y < minY) {
+                        b.y = minY;
+                        b.speedY *= -0.5;
+                    }
+                    drawBall(b);
+                });
+            } else if (window.chuteBoules) {
+                // Retour synchronisé : toutes les boules rejoignent leur position
+                // SVG initiale sur la durée prévue, avec une fin douce.
+                const elapsed = performance.now() - window.chuteStartTime;
+                const progress = Math.min(1, elapsed / window.chuteDuration);
+                // Ease-out : le mouvement est régulier puis ralentit légèrement à l'arrivée.
+                const eased = 1 - Math.pow(1 - progress, 3);
+                balls.forEach((b, index) => {
+                    const start = window.chutePositionsInitiales[index];
+                    b.x = start.x * (1 - eased);
+                    b.y = start.y * (1 - eased);
+                    if (progress >= 1) {
+                        b.x = 0;
+                        b.y = 0;
+                        b.speedX = 0;
+                        b.speedY = 0;
+                    }
+                    drawBall(b);
+                });
+
+                if (progress >= 1) {
+                    window.chuteBoules = false;
+                    window.remettreBoulesAuRepos();
+                    const bouton = document.getElementById('draw-number-button');
+                    if (bouton && !window.tousLesNumerosVingoTires) bouton.disabled = false;
+                }
             }
-
-            ball.setAttribute("cx", movement.startX + movement.x);
-            ball.setAttribute("cy", movement.startY + movement.y);
-        });
-
-        // LE NUMÉRO EST RÉVÉLÉ AVANT LA FIN DE LA RETOMBÉE
-        if (!window.numeroDejaRevelePendantChute && performance.now() - window.chuteStartTime >= 1200) {
-            window.numeroDejaRevelePendantChute = true;
-            if (typeof window.tirerNumeroVingo === "function") window.tirerNumeroVingo();
+            if (window.boulesEnMouvement || window.chuteBoules) {
+                animationFrame = requestAnimationFrame(animateBalls);
+            }
         }
 
-        // FIN : TOUTES LES BOULES ONT TOUCHÉ LE FOND
-        const toutesLesBoulesPosees = movements.every(
-            movement => movement.speedY === 0
-        );
-
-        if (toutesLesBoulesPosees) {
+        window.vingoStartMixing = function () {
+            window.boulesEnMouvement = true;
             window.chuteBoules = false;
+            window.numeroDejaRevelePendantChute = false;
+            balls.forEach(b => {
+                b.speedX = (Math.random() - 0.5) * 3;
+                b.speedY = (Math.random() - 0.5) * 6;
+            });
+            cancelAnimationFrame(animationFrame);
+            animationFrame = requestAnimationFrame(animateBalls);
+        };
+
+        window.vingoStopMixingAndSettle = function (cycleStartTime, totalDuration = 4000) {
+            window.boulesEnMouvement = false;
+            window.chuteBoules = true;
+            // Le cycle total, manivelle comprise, est fixé à 4 secondes.
+            // La retombée occupe le temps restant après le mouvement de manivelle.
+            const elapsedBeforeFall = performance.now() - cycleStartTime;
+            window.chuteStartTime = performance.now();
+            window.chuteDuration = Math.max(1, totalDuration - elapsedBeforeFall);
+            window.chutePositionsInitiales = balls.map(b => ({ x: b.x, y: b.y }));
+            window.numeroDejaRevelePendantChute = false;
+            animationFrame = requestAnimationFrame(animateBalls);
+            return new Promise(resolve => {
+                const check = () => {
+                    if (!window.chuteBoules) resolve();
+                    else setTimeout(check, 20);
+                };
+                check();
+            });
+        };
+
+        // Réinitialise l'animation de la cage et replace les boules.
+        window.vingoResetMachine = function () {
+            cancelAnimationFrame(animationFrame);
+            window.boulesEnMouvement = false;
+            window.chuteBoules = false;
+            window.chuteStartTime = 0;
+            window.numeroDejaRevelePendantChute = false;
             window.remettreBoulesAuRepos();
-            // Sécurité si la retombée est exceptionnellement courte
-            if (!window.numeroDejaRevelePendantChute && typeof window.tirerNumeroVingo === "function") {
-                window.numeroDejaRevelePendantChute = true;
-                window.tirerNumeroVingo();
+            animationFrame = 0;
+        };
+}) ();
+    </script>
+
+
+    <script>
+        // ============================================================
+        // 12. GRILLE VINGO : CONSTRUCTION, MARQUAGE ET TIRAGE AUTOMATIQUE
+        // ============================================================
+        // Ce bloc est isolé dans une fonction auto-exécutée pour garder
+        // ses variables locales et éviter de polluer l'espace global.
+        (function () {
+            const grid = document.getElementById('number-grid');
+            const counter = document.getElementById('grid-counter');
+            const resetButton = document.getElementById('grid-reset');
+            const letters = ['V', 'I', 'N', 'G', 'O'];
+            const markedNumbers = new Set();
+
+            // ------------------------------------------------------------
+            // 12.1 CRÉATION DES EN-TÊTES V, I, N, G, O
+            // ------------------------------------------------------------
+            letters.forEach(letter => {
+                const header = document.createElement('div');
+                header.className = 'grid-cell grid-header';
+                header.textContent = letter;
+                grid.appendChild(header);
+            });
+
+            // ------------------------------------------------------------
+            // 12.2 CRÉATION DES 75 CASES DE LA GRILLE
+            // 15 lignes : chaque colonne contient sa plage de 15 numéros.
+            for (let row = 0; row < 15; row++) {
+                letters.forEach((letter, column) => {
+                    const number = column * 15 + row + 1;
+                    const cell = document.createElement('div');
+                    cell.className = 'grid-cell';
+                    cell.textContent = number;
+                    cell.dataset.number = number;
+                    cell.dataset.column = letter;
+                    cell.title = 'Numéro marqué automatiquement lors du tirage';
+                    grid.appendChild(cell);
+                });
             }
-            const boutonPrincipal = document.getElementById("draw-number-button");
-            if (boutonPrincipal && !window.tousLesNumerosVingoTires) boutonPrincipal.disabled = false;
-        }
-    }
 
+            // 12.3 MISE À JOUR DU COMPTEUR DE CASES COCHÉES
+            function updateCounter() {
+                counter.textContent = markedNumbers.size + ' / 75 numéros tirés';
+            }
 
-// RELANCE DE L'ANIMATION
-requestAnimationFrame(animateBalls);
-}
+            // ------------------------------------------------------------
+            // 12.4 MARQUAGE AUTOMATIQUE D'UN NUMÉRO DANS LA GRILLE
+            // Fonction utilisée par le tirage automatique.
+            window.marquerNumeroVingo = function (number) {
+                const cell = grid.querySelector('[data-number="' + number + '"]');
+                if (!cell || markedNumbers.has(number)) return;
+                markedNumbers.add(number);
+                cell.classList.add('called');
+                cell.setAttribute('aria-pressed', 'true');
+                updateCounter();
+            };
 
-// LANCEMENT DE L'ANIMATION
-animateBalls(); 
-</script>
-<script type="module">
-    import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js';
-    const container = document.getElementById("manivelle-3d");
-    const scene = new THREE.Scene();
-    const manivelleGroup = new THREE.Group();
+            // ------------------------------------------------------------
+            // 12.5 LOGIQUE DU TIRAGE : NUMÉRO UNIQUE, LETTRE, COULEUR ET AFFICHAGE
+            // ------------------------------------------------------------
+            // Les numéros déjà tirés sont stockés dans drawnNumbers pour éviter
+            // qu'un même numéro sorte deux fois.
+            const drawButton = document.getElementById('draw-number-button');
+            const drawLetter = document.getElementById('draw-letter');
+            const drawNumber = document.getElementById('draw-number');
+            const drawStatus = document.getElementById('draw-status');
+            const drawnNumbers = new Set();
+            const letterByNumber = number => ['V', 'I', 'N', 'G', 'O'][Math.floor((number - 1) / 15)];
 
-    const camera = new THREE.PerspectiveCamera(
-    45,
-    1,
-    0.1,
-    100
-);
+            // Fonction appelée à la fin de la retombée (ou par sécurité si elle est courte).
+            // Elle choisit un numéro parmi ceux qui n'ont pas encore été tirés.
+            window.tousLesNumerosVingoTires = false;
+            window.tirerNumeroVingo = function () {
+                const available = [];
+                for (let n = 1; n <= 75; n++) {
+                    if (!drawnNumbers.has(n)) available.push(n);
+                }
+                if (available.length === 0) {
+                    drawStatus.textContent = 'Tous les 75 numéros ont été tirés !';
+                    drawButton.disabled = true;
+                    window.tousLesNumerosVingoTires = true;
+                    return;
+                }
+                const number = available[Math.floor(Math.random() * available.length)];
+                const letter = letterByNumber(number);
+                drawnNumbers.add(number);
+                drawLetter.textContent = letter;
+                drawNumber.textContent = number;
 
-camera.position.z = 5;
+                // Couleur du grand affichage identique à celle de la colonne dans la grille
+                const colorsByLetter = {
+                    V: '#39a36b',
+                    I: '#e6c84f',
+                    N: '#438fc8',
+                    G: '#9875c2',
+                    O: '#e88b43'
+                };
+                const drawDisplay = document.getElementById('draw-display');
+                drawLetter.style.color = colorsByLetter[letter];
+                drawNumber.style.color = colorsByLetter[letter];
+                drawDisplay.style.borderColor = colorsByLetter[letter];
 
-const renderer = new THREE.WebGLRenderer({
-    alpha: true,
-    antialias: true
-});
+                drawStatus.textContent = 'Tirage ' + drawnNumbers.size + ' / 75';
+                drawDisplay.classList.remove('reveal-number');
+                void drawDisplay.offsetWidth; // relance l'animation pour chaque tirage
+                drawDisplay.classList.add('reveal-number');
+                window.marquerNumeroVingo(number);
+                if (drawnNumbers.size === 75) {
+                    drawButton.disabled = true;
+                    window.tousLesNumerosVingoTires = true;
+                    drawStatus.textContent = 'Tous les 75 numéros ont été tirés !';
+                }
+            };
 
-renderer.setSize(430, 430);
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            // ------------------------------------------------------------
+            // 12.6 ACTION DU BOUTON PRINCIPAL : BRASSAGE DE LA CAGE
+            // La manivelle descend jusqu'à la position basse, puis remonte en position haute avant le tirage.
+            const crankRodOutline = document.getElementById('manivelle-tige-contour');
+            const crankRodInner = document.getElementById('manivelle-tige-interieur');
+            const crankHandle = document.getElementById('manivelle-poignee');
+            const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
 
-container.appendChild(renderer.domElement);
+            // Déplacement sans rotation : le point d'attache reste fixe, tandis que
+            // l'extrémité de la longue tige et la poignée descendent puis remontent.
+            function animateCrank(fromY, toY, fromHandleY, toHandleY, duration = 520) {
+                return new Promise(resolve => {
+                    const start = performance.now();
+                    function frame(now) {
+                        const progress = Math.min((now - start) / duration, 1);
+                        // Courbe douce, sans effet de rotation ni rebond.
+                        const eased = progress < 0.5
+                            ? 2 * progress * progress
+                            : 1 - Math.pow(-2 * progress + 2, 2) / 2;
+                        const rodY = fromY + (toY - fromY) * eased;
+                        const handleY = fromHandleY + (toHandleY - fromHandleY) * eased;
+                        const path = `M462 230 L462 ${rodY.toFixed(2)}`;
+                        crankRodOutline.setAttribute('d', path);
+                        crankRodInner.setAttribute('d', path);
+                        crankHandle.setAttribute('cy', handleY.toFixed(2));
+                        if (progress < 1) requestAnimationFrame(frame);
+                        else resolve();
+                    }
+                    requestAnimationFrame(frame);
+                });
+            }
 
-// CREATION DU MANIVELLE
-const geometry = new THREE.CapsuleGeometry(0.075, 0.20, 4, 8);
-const material = new THREE.MeshBasicMaterial({
-    color: "#5BA9C2"
-});
+            drawButton.addEventListener('click', async () => {
+                if (drawButton.disabled) return;
+                drawButton.disabled = true;
+                drawStatus.textContent = 'Brassage des boules…';
 
-const manche = new THREE.Mesh(geometry, material);
-manche.position.set(1.35, 0, 0);
-manche.rotation.z = Math.PI / 2;
+                // Le cycle complet, depuis l'action sur la manivelle jusqu'à
+                // la dernière boule replacée, doit durer 4 secondes.
+                const cycleStartTime = performance.now();
+                window.vingoStartMixing();
+                await animateCrank(132, 355, 105, 382);
+                await animateCrank(355, 132, 382, 105);
 
-manivelleGroup.add(manche);
+                // La manivelle est revenue : plus d'impulsion, les boules terminent
+                // leur chute et se stabilisent avant le tirage.
+                // La retombée continue jusqu'à 4 secondes au total.
+                // Le numéro, lui, est révélé exactement 2 secondes après le clic.
+                const settlePromise = window.vingoStopMixingAndSettle(cycleStartTime, 4000);
+                await wait(Math.max(0, 2000 - (performance.now() - cycleStartTime)));
+                window.tirerNumeroVingo();
 
-// BRAS VERTICAL DE LA MANIVELLE
-const geometryVertical = new THREE.CapsuleGeometry(0.075, 0.33, 4, 8);
+                // On attend ensuite la fin de l'animation complète (4 secondes)
+                // avant de permettre le prochain tirage.
+                await settlePromise;
+                if (!window.tousLesNumerosVingoTires) drawButton.disabled = false;
+            });
 
-const brasVertical = new THREE.Mesh(geometryVertical, material);
-
-brasVertical.position.set(1.50, 0.24, 0);
-
-manivelleGroup.add(brasVertical);
-
-// BRAS HORIZONTAL SUPERIEUR
-const geometryHorizontal = new THREE.CapsuleGeometry(0.075, 0.20, 4, 8);
-const brasHorizontal = new THREE.Mesh(geometryHorizontal, material);
-brasHorizontal.rotation.z = Math.PI / 2;
-brasHorizontal.position.set(1.65, 0.48, 0);
-
-manivelleGroup.add(brasHorizontal);
-
-// PIVOT DE LA MANIVELLE
-const pivot = new THREE.Group();
-pivot.position.set(1.30, 0, 0);
-
-manivelleGroup.position.set(-1.30, 0, 0);
-manivelleGroup.scale.set(1.2, 1.2, 1.2);
-pivot.add(manivelleGroup);
-scene.add(pivot);
-
-// ANIMATION DE LA MANIVELLE
-let mouvement = 0;
-let enAnimation = false;
-
-const boutonTirage = document.getElementById("draw-number-button");
-
-window.lancerBrassageVingo = function () {
-    // RÉINITIALISATION DANS LA POSITION DE REPOS EN ARC
-    window.remettreBoulesAuRepos();
-    movements.forEach((movement) => {
-        movement.speedX = (Math.random() - 0.5) * 1.5;
-        movement.speedY = - (Math.random() * 4 + 2);
-    });
-    // LANCEMENT DU BRASSAGE
-    mouvement = 0;
-    enAnimation = true;
-    window.chuteBoules = false;
-    window.boulesEnMouvement = true;
-    boutonTirage.disabled = true;
-};
-
-function animateManivelle() {
-    if (enAnimation) {
-        mouvement += 0.063; // Tour de manivelle environ 1 seconde plus long que la version précédente
-
-        if (mouvement >= Math.PI * 2) {
-    mouvement = Math.PI * 2;
-    enAnimation = false;
-    window.boulesEnMouvement = false;
-    window.chuteBoules = true;
-    window.chuteStartTime = performance.now();
-    window.numeroDejaRevelePendantChute = false;
-
-    boutonTirage.disabled = true;
-}
-
-        pivot.rotation.x = mouvement;
-    }
-
-    renderer.render(scene, camera);
-    requestAnimationFrame(animateManivelle);
-}
-
-animateManivelle();
-
-</script>
-
-<script>
-// GRILLE VINGO : marquage manuel pour le moment
-(function () {
-    const grid = document.getElementById('number-grid');
-    const counter = document.getElementById('grid-counter');
-    const resetButton = document.getElementById('grid-reset');
-    const letters = ['V', 'I', 'N', 'G', 'O'];
-    const markedNumbers = new Set();
-
-    // En-têtes des colonnes
-    letters.forEach(letter => {
-        const header = document.createElement('div');
-        header.className = 'grid-cell grid-header';
-        header.textContent = letter;
-        grid.appendChild(header);
-    });
-
-    // 15 lignes : chaque colonne contient sa plage de 15 numéros
-    for (let row = 0; row < 15; row++) {
-        letters.forEach((letter, column) => {
-            const number = column * 15 + row + 1;
-            const cell = document.createElement('button');
-            cell.type = 'button';
-            cell.className = 'grid-cell';
-            cell.textContent = number;
-            cell.dataset.number = number;
-            cell.dataset.column = letter;
-            cell.setAttribute('aria-pressed', 'false');
-            cell.title = 'Cliquer pour marquer le numéro ' + number;
-            cell.addEventListener('click', () => {
-                if (markedNumbers.has(number)) {
-                    markedNumbers.delete(number);
+            // ------------------------------------------------------------
+            // 12.7 RÉINITIALISATION : grille, tirages, affichage et bouton
+            // ------------------------------------------------------------
+            resetButton.addEventListener('click', () => {
+                markedNumbers.clear();
+                drawnNumbers.clear();
+                drawLetter.textContent = '?';
+                drawNumber.textContent = '?';
+                drawLetter.style.color = '#555';
+                drawNumber.style.color = '#555';
+                document.getElementById('draw-display').style.borderColor = 'var(--green)';
+                drawStatus.textContent = 'En attente du tirage...';
+                drawButton.disabled = false;
+                window.tousLesNumerosVingoTires = false;
+                if (typeof window.vingoResetMachine === 'function') window.vingoResetMachine();
+                const rodStartPath = 'M462 230 L462 132';
+                crankRodOutline.setAttribute('d', rodStartPath);
+                crankRodInner.setAttribute('d', rodStartPath);
+                crankHandle.setAttribute('cy', '105');
+                grid.querySelectorAll('.grid-cell[data-number]').forEach(cell => {
                     cell.classList.remove('called');
                     cell.setAttribute('aria-pressed', 'false');
-                } else {
-                    markedNumbers.add(number);
-                    cell.classList.add('called');
-                    cell.setAttribute('aria-pressed', 'true');
-                }
+                });
                 updateCounter();
             });
-            grid.appendChild(cell);
-        });
-    }
-
-    function updateCounter() {
-        counter.textContent = markedNumbers.size + ' / 75 numéros cochés';
-    }
-
-    // Fonction qui pourra être appelée plus tard par le tirage automatique
-    window.marquerNumeroVingo = function (number) {
-        const cell = grid.querySelector('[data-number="' + number + '"]');
-        if (!cell || markedNumbers.has(number)) return;
-        markedNumbers.add(number);
-        cell.classList.add('called');
-        cell.setAttribute('aria-pressed', 'true');
-        updateCounter();
-    };
-
-    // TIRAGE MANUEL D'UN NUMÉRO UNIQUE, AVEC LETTRE ET MISE À JOUR DE LA GRILLE
-    const drawButton = document.getElementById('draw-number-button');
-    const drawLetter = document.getElementById('draw-letter');
-    const drawNumber = document.getElementById('draw-number');
-    const drawStatus = document.getElementById('draw-status');
-    const drawnNumbers = new Set();
-    const letterByNumber = number => ['V', 'I', 'N', 'G', 'O'][Math.floor((number - 1) / 15)];
-
-    // Tirage appelé uniquement à la fin du brassage et de la retombée
-    window.tousLesNumerosVingoTires = false;
-    window.tirerNumeroVingo = function () {
-        const available = [];
-        for (let n = 1; n <= 75; n++) {
-            if (!drawnNumbers.has(n)) available.push(n);
-        }
-        if (available.length === 0) {
-            drawStatus.textContent = 'Tous les 75 numéros ont été tirés !';
-            drawButton.disabled = true;
-            window.tousLesNumerosVingoTires = true;
-            return;
-        }
-        const number = available[Math.floor(Math.random() * available.length)];
-        const letter = letterByNumber(number);
-        drawnNumbers.add(number);
-        drawLetter.textContent = letter;
-        drawNumber.textContent = number;
-
-        // Couleur du grand affichage identique à celle de la colonne dans la grille
-        const colorsByLetter = {
-            V: '#39a36b',
-            I: '#e6c84f',
-            N: '#438fc8',
-            G: '#9875c2',
-            O: '#e88b43'
-        };
-        const drawDisplay = document.getElementById('draw-display');
-        drawLetter.style.color = colorsByLetter[letter];
-        drawNumber.style.color = colorsByLetter[letter];
-        drawDisplay.style.borderColor = colorsByLetter[letter];
-
-        drawStatus.textContent = 'Tirage ' + drawnNumbers.size + ' / 75';
-        drawDisplay.classList.remove('reveal-number');
-        void drawDisplay.offsetWidth; // relance l'animation pour chaque tirage
-        drawDisplay.classList.add('reveal-number');
-        window.marquerNumeroVingo(number);
-        if (drawnNumbers.size === 75) {
-            drawButton.disabled = true;
-            window.tousLesNumerosVingoTires = true;
-            drawStatus.textContent = 'Tous les 75 numéros ont été tirés !';
-        }
-    };
-
-    // Le bouton principal lance la machine (le tirage réel est déclenché après le brassage).
-    drawButton.addEventListener('click', () => {
-        if (drawButton.disabled) return;
-        drawButton.disabled = true;
-        if (typeof window.lancerBrassageVingo === 'function') window.lancerBrassageVingo();
-    });
-
-    resetButton.addEventListener('click', () => {
-        markedNumbers.clear();
-        drawnNumbers.clear();
-        drawLetter.textContent = '?';
-        drawNumber.textContent = '?';
-        drawLetter.style.color = '#555';
-        drawNumber.style.color = '#555';
-        document.getElementById('draw-display').style.borderColor = 'var(--green)';
-        drawStatus.textContent = 'En attente du tirage...';
-        drawButton.disabled = false;
-        window.tousLesNumerosVingoTires = false;
-        grid.querySelectorAll('.grid-cell[data-number]').forEach(cell => {
-            cell.classList.remove('called');
-            cell.setAttribute('aria-pressed', 'false');
-        });
-        updateCounter();
-    });
-})();
-</script>
+        })();
+    </script>
 
 </body>
+
 </html>
