@@ -910,6 +910,14 @@
         window.numeroDejaRevelePendantChute = false;
 
         let animationFrame = 0;
+        let animationLoopActive = false;
+
+        // Une seule boucle d'animation peut être active à la fois.
+        function lancerBoucleAnimation() {
+            if (animationLoopActive) return;
+            animationLoopActive = true;
+            animationFrame = requestAnimationFrame(animateBalls);
+        }
 
         function animateBalls() {
             if (window.boulesEnMouvement) {
@@ -964,6 +972,9 @@
             }
             if (window.boulesEnMouvement || window.chuteBoules) {
                 animationFrame = requestAnimationFrame(animateBalls);
+            } else {
+                animationFrame = 0;
+                animationLoopActive = false;
             }
         }
 
@@ -975,8 +986,7 @@
                 b.speedX = (Math.random() - 0.5) * 3;
                 b.speedY = (Math.random() - 0.5) * 6;
             });
-            cancelAnimationFrame(animationFrame);
-            animationFrame = requestAnimationFrame(animateBalls);
+            lancerBoucleAnimation();
         };
 
         window.vingoStopMixingAndSettle = function (cycleStartTime, totalDuration = 4000) {
@@ -989,7 +999,7 @@
             window.chuteDuration = Math.max(1, totalDuration - elapsedBeforeFall);
             window.chutePositionsInitiales = balls.map(b => ({ x: b.x, y: b.y }));
             window.numeroDejaRevelePendantChute = false;
-            animationFrame = requestAnimationFrame(animateBalls);
+            lancerBoucleAnimation();
             return new Promise(resolve => {
                 const check = () => {
                     if (!window.chuteBoules) resolve();
@@ -1002,6 +1012,8 @@
         // Réinitialise l'animation de la cage et replace les boules.
         window.vingoResetMachine = function () {
             cancelAnimationFrame(animationFrame);
+            animationFrame = 0;
+            animationLoopActive = false;
             window.boulesEnMouvement = false;
             window.chuteBoules = false;
             window.chuteStartTime = 0;
@@ -1079,23 +1091,54 @@
             const drawNumber = document.getElementById('draw-number');
             const drawStatus = document.getElementById('draw-status');
             const drawnNumbers = new Set();
+            let tirageMelange = [];
+            let indexTirage = 0;
+
+            // Mélange aléatoire de type « paquet de cartes » (Fisher-Yates).
+            // Puis on réorganise légèrement le paquet pour éviter, autant que possible,
+            // que deux numéros consécutifs se suivent dans les tirages.
+            // Tous les numéros restent uniques et le mélange est renouvelé à chaque partie.
+            function preparerTirageMelange() {
+                tirageMelange = Array.from({ length: 75 }, (_, i) => i + 1);
+                for (let i = tirageMelange.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [tirageMelange[i], tirageMelange[j]] = [tirageMelange[j], tirageMelange[i]];
+                }
+
+                // Repositionne les numéros qui suivraient immédiatement le précédent,
+                // en échangeant avec une position future qui permet une meilleure séparation.
+                for (let i = 1; i < tirageMelange.length - 1; i++) {
+                    if (Math.abs(tirageMelange[i] - tirageMelange[i - 1]) === 1) {
+                        const candidats = [];
+                        for (let j = i + 1; j < tirageMelange.length; j++) {
+                            if (Math.abs(tirageMelange[j] - tirageMelange[i - 1]) !== 1 &&
+                                Math.abs(tirageMelange[j] - tirageMelange[i]) !== 1) {
+                                candidats.push(j);
+                            }
+                        }
+                        if (candidats.length) {
+                            const j = candidats[Math.floor(Math.random() * candidats.length)];
+                            [tirageMelange[i], tirageMelange[j]] = [tirageMelange[j], tirageMelange[i]];
+                        }
+                    }
+                }
+                indexTirage = 0;
+            }
+            preparerTirageMelange();
+
             const letterByNumber = number => ['V', 'I', 'N', 'G', 'O'][Math.floor((number - 1) / 15)];
 
             // Fonction appelée à la fin de la retombée (ou par sécurité si elle est courte).
             // Elle choisit un numéro parmi ceux qui n'ont pas encore été tirés.
             window.tousLesNumerosVingoTires = false;
             window.tirerNumeroVingo = function () {
-                const available = [];
-                for (let n = 1; n <= 75; n++) {
-                    if (!drawnNumbers.has(n)) available.push(n);
-                }
-                if (available.length === 0) {
+                if (indexTirage >= tirageMelange.length) {
                     drawStatus.textContent = 'Tous les 75 numéros ont été tirés !';
                     drawButton.disabled = true;
                     window.tousLesNumerosVingoTires = true;
                     return;
                 }
-                const number = available[Math.floor(Math.random() * available.length)];
+                const number = tirageMelange[indexTirage++];
                 const letter = letterByNumber(number);
                 drawnNumbers.add(number);
                 drawLetter.textContent = letter;
@@ -1160,6 +1203,16 @@
 
             let drawCycleId = 0;
 
+            // Raccourci clavier : la barre Espace lance également un tirage.
+            // On évite le scroll de la page et les déclenchements dans les champs de saisie.
+            document.addEventListener('keydown', (event) => {
+                if (event.code !== 'Space' || event.repeat) return;
+                const target = event.target;
+                if (target && (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName))) return;
+                event.preventDefault();
+                if (!drawButton.disabled) drawButton.click();
+            });
+
             drawButton.addEventListener('click', async () => {
                 if (drawButton.disabled) return;
                 const thisCycleId = ++drawCycleId;
@@ -1193,6 +1246,7 @@
                 drawCycleId++;
                 markedNumbers.clear();
                 drawnNumbers.clear();
+                preparerTirageMelange();
                 drawLetter.textContent = '?';
                 drawNumber.textContent = '?';
                 drawLetter.style.color = '#555';
