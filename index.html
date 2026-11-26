@@ -960,8 +960,6 @@
                 if (progress >= 1) {
                     window.chuteBoules = false;
                     window.remettreBoulesAuRepos();
-                    const bouton = document.getElementById('draw-number-button');
-                    if (bouton && !window.tousLesNumerosVingoTires) bouton.disabled = false;
                 }
             }
             if (window.boulesEnMouvement || window.chuteBoules) {
@@ -1160,36 +1158,39 @@
                 });
             }
 
+            let drawCycleId = 0;
+
             drawButton.addEventListener('click', async () => {
                 if (drawButton.disabled) return;
+                const thisCycleId = ++drawCycleId;
                 drawButton.disabled = true;
                 drawStatus.textContent = 'Brassage des boules…';
 
-                // Le cycle complet, depuis l'action sur la manivelle jusqu'à
-                // la dernière boule replacée, doit durer 4 secondes.
+                // Le brassage démarre au clic.
                 const cycleStartTime = performance.now();
                 window.vingoStartMixing();
                 await animateCrank(132, 355, 105, 382);
                 await animateCrank(355, 132, 382, 105);
 
-                // La manivelle est revenue : plus d'impulsion, les boules terminent
-                // leur chute et se stabilisent avant le tirage.
-                // La retombée continue jusqu'à 4 secondes au total.
-                // Le numéro, lui, est révélé exactement 2 secondes après le clic.
+                // La cage termine sa stabilisation; le numéro reste révélé à 2 secondes.
                 const settlePromise = window.vingoStopMixingAndSettle(cycleStartTime, 4000);
                 await wait(Math.max(0, 2000 - (performance.now() - cycleStartTime)));
-                window.tirerNumeroVingo();
 
-                // On attend ensuite la fin de l'animation complète (4 secondes)
-                // avant de permettre le prochain tirage.
+                // Si un nouveau tirage a déjà commencé, ce cycle ne révèle plus son numéro.
+                if (thisCycleId === drawCycleId) {
+                    window.tirerNumeroVingo();
+                    // Le bouton se réactive dès que le numéro apparaît à l'écran.
+                    if (!window.tousLesNumerosVingoTires) drawButton.disabled = false;
+                }
+
                 await settlePromise;
-                if (!window.tousLesNumerosVingoTires) drawButton.disabled = false;
             });
 
             // ------------------------------------------------------------
             // 12.7 RÉINITIALISATION : grille, tirages, affichage et bouton
             // ------------------------------------------------------------
             resetButton.addEventListener('click', () => {
+                drawCycleId++;
                 markedNumbers.clear();
                 drawnNumbers.clear();
                 drawLetter.textContent = '?';
